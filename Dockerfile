@@ -1,4 +1,4 @@
-FROM node:10.15.1
+FROM node:10.15.1 AS node
 
 # Install VS Code's deps. These are the only two it seems we need.
 RUN apt-get update && apt-get install -y \
@@ -14,6 +14,8 @@ COPY . .
 # In the future, we can use https://github.com/yarnpkg/rfcs/pull/53 to make yarn use the node_modules
 # directly which should be fast as it is slow because it populates its own cache every time.
 RUN yarn && NODE_ENV=production yarn task build:server:binary
+
+FROM php:7.2-cli AS php
 
 # We deploy with ubuntu so that devs have a familiar environment.
 FROM ubuntu:18.04
@@ -47,7 +49,9 @@ WORKDIR /home/coder/project
 # So that they do not lose their data if they delete the container.
 VOLUME [ "/home/coder/project" ]
 
-COPY --from=0 /src/packages/server/cli-linux-x64 /usr/local/bin/code-server
+COPY --from=node /src/packages/server/cli-linux-x64 /usr/local/bin/code-server
+COPY --from=php /usr/local/bin/php /usr/local/bin/php
+
 EXPOSE 8443
 
 ENTRYPOINT ["dumb-init", "code-server"]
